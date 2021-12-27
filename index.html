@@ -1,0 +1,639 @@
+</html>
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>INFO 3300 Project 2</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css"
+    integrity="sha512-Oy18vBnbSJkXTndr2n6lDMO5NN31UljR8e/ICzVPrGpSud4Gkckb8yUpqhKuUNoE+o9gAb4O/rAxxw1ojyUVzg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    .markdown-body {
+      box-sizing: border-box;
+      min-width: 200px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 45px;
+    }
+
+    @media (max-width: 767px) {
+      .markdown-body {
+        padding: 15px;
+      }
+    }
+
+    svg {
+      border-radius: 1em;
+    }
+
+    span {
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 2em;
+    }
+  </style>
+
+<body>
+  <article class="markdown-body">
+    <h1>A History of the Gaming Industry</h1>
+    <p>Hover over the legends on both sides of the page to see more. Genres are on the left and companies are on the right.</p>
+    <h2>Copies Sold by Genre</h2>
+    <div style="position: relative; overflow: visible; font-family: 'Quicksand', sans-serif;">
+      <svg id="p0_svg" height=600 width=700 overflow="visible"></svg>
+      <div style="position: absolute; top: 280px; left: -80px; transform: rotate(270deg);">Copies sold (millions)</div>
+      <div style="position: absolute; bottom: -8px; left: 300px;">Year Released</div>
+      <div id="label" style="position: absolute; white-space: nowrap; top: 0px; left: 720px;"></div>
+    </div>
+    <div id="legend" style="position: fixed; top: -50; left: 0; right: 0;">
+      <div id="filter_Sports"
+        style="position: absolute; white-space: nowrap; top: 285px; left: 20px; font-weight: 500;">⚽ Sports</div>
+      <div id="filter_Simulation"
+        style="position: absolute; white-space: nowrap; top: 310px; left: 20px; font-weight: 500;">📦 Simulation</div>
+      <div id="filter_Platform"
+        style="position: absolute; white-space: nowrap; top: 335px; left: 20px; font-weight: 500;">🏃 Platform</div>
+      <div id="filter_Action"
+        style="position: absolute; white-space: nowrap; top: 360px; left: 20px; font-weight: 500;">💥 Action</div>
+      <div id="filter_Role-Playing"
+        style="position: absolute; white-space: nowrap; top: 385px; left: 20px; font-weight: 500;">⚔️ Role-Playing
+      </div>
+      <div id="filter_Shooter"
+        style="position: absolute; white-space: nowrap; top: 410px; left: 20px; font-weight: 500;">🔫 Shooter</div>
+      <div id="filter_Fighting"
+        style="position: absolute; white-space: nowrap; top: 435px; left: 20px; font-weight: 500;">🥊 Fighting</div>
+      <div id="filter_Adventure"
+        style="position: absolute; white-space: nowrap; top: 460px; left: 20px; font-weight: 500;">🏔️ Adventure</div>
+      <div id="filter_Racing"
+        style="position: absolute; white-space: nowrap; top: 485px; left: 20px; font-weight: 500;">🏎️ Racing</div>
+      <div id="filter_Misc" style="position: absolute; white-space: nowrap; top: 510px; left: 20px; font-weight: 500;">
+        🗂️ Misc</div>
+    </div>
+    <br /><br /><br />
+    <h2>Copies Sold by Company</h2>
+    <div id="graph" style="position: relative; overflow: visible; font-family: 'Quicksand', sans-serif;">
+      <svg id="barGraph" height=450 width=800></svg>
+    </div>
+    <br /><br /><br />
+    <h2>Copies Sold by Genre (with company breakdown)</h2>
+    <div id="graph" style="position: relative; overflow: visible; font-family: 'Quicksand', sans-serif;">
+      <svg id="lineplot" height=500 width=800></svg>
+      <div style="position: absolute; top: 220px; left: -80px; transform: rotate(270deg);">Copies sold (millions)</div>
+      <div style="position: absolute; bottom: 5px; left: 400px;">Year Released</div>
+    </div>
+    <div id="button-bar"></div>
+    <script>
+      /* ==============================------------------------------==============================
+       *                                      Scatterplot Chart
+       * ==============================------------------------------==============================
+       */
+
+      const scatterSvg = d3.select("svg#p0_svg");
+
+      const scatterWidth = scatterSvg.attr("width");
+      const scatterHeight = scatterSvg.attr("height");
+      const scatterMargin = { top: 10, right: 10, bottom: 50, left: 50 };
+
+      const scatterChartWidth = scatterWidth - scatterMargin.left - scatterMargin.right;
+      const scatterChartHeight = scatterHeight - scatterMargin.top - scatterMargin.bottom;
+
+      let scatterAnnotations = scatterSvg.append("g").attr("id", "annotations");
+
+      let scatterChartArea = scatterSvg.append("g").attr("id", "points")
+        .attr("transform", `translate(${scatterMargin.left},${scatterMargin.top})`);
+
+      const genresList = [
+        "Sports",
+        "Simulation",
+        "Platform",
+        "Action",
+        "Role-Playing",
+        "Shooter",
+        "Fighting",
+        "Adventure",
+        "Racing",
+        "Misc"];
+
+      const consolesList = ["Nintendo", "Microsoft", "Sony", "Pc", "Atari", "Sega", "Arcade"];
+
+
+      /* ==============================------------------------------==============================
+       *                                       Bar Chart
+       * ==============================------------------------------==============================
+       */
+
+      let barGraph = d3.select('svg#barGraph');
+      const barTotalWidth = barGraph.attr("width");
+      const barTotalHeight = barGraph.attr("height");
+      const barGraphMargin = {
+        top: 10,
+        right: 160,
+        bottom: 50,
+        left: 70
+      };
+      const barGraphWidth = barTotalWidth - barGraphMargin.left - barGraphMargin.right;
+      const barGraphHeight = barTotalHeight - barGraphMargin.top - barGraphMargin.bottom - 10;
+      let barGraphAnnotations = barGraph.append("g").attr("id", "annotations");
+
+      /* ==============================------------------------------==============================
+       *                                         Line Chart
+       * ==============================------------------------------==============================
+       */
+
+      const lineSvg = d3.select("svg#lineplot");
+      const lineWidth = lineSvg.attr("width");
+      const lineHeight = lineSvg.attr("height");
+      const lineMargin = { top: 10, right: 10, bottom: 50, left: 50 };
+      const lineChartWidth = lineWidth - lineMargin.left - lineMargin.right;
+      const lineChartHeight = lineHeight - lineMargin.top - lineMargin.bottom;
+
+      let lineAnnotations = lineSvg.append("g").attr("id", "annotations");
+      let lineChartArea = lineSvg.append("g").attr("id", "points")
+        .attr("transform", `translate(${lineMargin.left},${lineMargin.top})`);
+
+      const requestData = async function () {
+        let vgsalesAutoType = await d3.csv("vgsales.csv", d3.autoType);
+        let vgsalesRaw = await d3.csv("vgsales.csv");
+
+        /* ==============================------------------------------==============================
+         *                                      Scatterplot Code
+         * ==============================------------------------------==============================
+         */
+
+        let scatterData = vgsalesAutoType.slice(0, 1000);
+        scatterData = scatterData.filter( (vg) => {return vg["Year"] < 2016;});
+
+        let scatterSalesExtent = d3.extent(scatterData, d => d['Global_Sales']);
+        const scatterSalesScale = d3.scaleLog().domain(scatterSalesExtent).range([scatterChartHeight, 0]);
+
+        let scatterYearExtent = d3.extent(scatterData, d => d['Year']);
+        scatterYearExtent[1] += 1;
+        const scatterYearScale = d3.scaleLinear().domain(scatterYearExtent).range([0, scatterChartWidth]);
+
+        let genreColors = d3.scaleOrdinal(d3.schemeCategory10).domain(genresList);
+
+        let scatterLeftAxis = d3.axisLeft(scatterSalesScale);
+        let scatterLeftGridlines = d3.axisLeft(scatterSalesScale)
+          .tickSize(-scatterChartWidth - 10)
+          .tickFormat("")
+
+        // Y axis
+        scatterAnnotations.append("g")
+          .attr("class", "y axis")
+          .attr("transform", `translate(${scatterMargin.left - 10},${scatterMargin.top})`)
+          .call(scatterLeftAxis)
+
+        scatterAnnotations.append("g")
+          .attr("class", "y gridlines")
+          .attr("transform", `translate(${scatterMargin.left - 10},${scatterMargin.top})`)
+          .call(scatterLeftGridlines);
+
+        // X axis
+        let scatterBottomAxis = d3.axisBottom(scatterYearScale)
+          .tickFormat(d3.format("d"))
+        let scatterBottomGridlines = d3.axisBottom(scatterYearScale)
+          .tickSize(-scatterChartHeight - 10)
+          .tickFormat("")
+        scatterAnnotations.append("g")
+          .attr("class", "x axis")
+          .attr("transform", `translate(${scatterMargin.left},${scatterChartHeight + scatterMargin.top + 10})`)
+          .call(scatterBottomAxis);
+        scatterAnnotations.append("g")
+          .attr("class", "x gridlines")
+          .attr("transform", `translate(${scatterMargin.left},${scatterChartHeight + scatterMargin.top + 10})`)
+          .call(scatterBottomGridlines);
+
+        scatterAnnotations.selectAll("line")
+          .style("stroke", "lightgrey");
+
+        let jitter = () => Math.floor(Math.random() * 9) - 4;
+
+        scatterData.forEach((d, i) => {
+          let xwJitter = scatterYearScale(d['Year']) + jitter();
+          let ywJitter = scatterSalesScale(d['Global_Sales']) + jitter();
+          if (isNaN(xwJitter)) {
+            return;
+          }
+          let circle = scatterChartArea.append("circle")
+            .attr("class", "gameCircle " + d['Genre'])
+            .attr("cx", xwJitter)
+            .attr("cy", ywJitter)
+            .attr("r", 5)
+            .attr("opacity", 0.7)
+            .attr("fill", genreColors(d['Genre']));
+
+          circle.on("mouseover", function () {
+            d3.select(this).raise();
+            d3.select(this)
+              .transition().duration(200)
+              .attr("stroke", "black")
+              .attr("stroke-width", 4)
+              .attr("r", 7);
+            d3.select("#label").raise();
+            d3.select("#label")
+              .html(`<b>${d['Name']}</b><br />
+                <u>Publisher:</u> ${d['Publisher']} <br/ >
+                <u>Platform:</u> ${d['Platform']} <br/ >
+                <u>Genre:</u> ${d['Genre']} <br/ >
+                <u>Global Sales:</u> ${d['Global_Sales']} million <br/ >
+              `);
+          });
+          circle.on("click", function () {
+            console.log(d);
+          });
+          circle.on("mouseout", function () {
+            d3.select(this)
+              .transition().duration(200)
+              .attr("stroke-width", 0)
+              .attr("r", 5);
+            d3.select("#label")
+              .html("");
+          });
+        });
+
+        genresList.forEach((d, i) => {
+          let genreFilter = d3.select(`div#filter_${d}`);
+          genreFilter.style("color", genreColors(d))
+          genreFilter.on("mouseover", function () {
+            d3.selectAll(".gameCircle").each((_, i, nodes) => {
+              d3.select(nodes[i])
+                .transition().duration(200)
+                .attr("opacity", 0.1);
+            });
+            d3.selectAll(".linegraph_line").each((_, i, nodes) => {
+              d3.select(nodes[i])
+                .transition().duration(200)
+                .attr("opacity", 0.1);
+            });
+            d3.selectAll(`.${d}`).each((_, i, nodes) => {
+              d3.select(nodes[i]).raise();
+              d3.select(nodes[i])
+                .transition().duration(200)
+                .attr("opacity", 0.9);
+            });
+          });
+          genreFilter.on("mouseout", function () {
+            d3.selectAll(".gameCircle").each((_, i, nodes) => {
+              d3.select(nodes[i])
+                .transition().duration(200)
+                .attr("opacity", 0.7);
+            });
+            d3.selectAll(".linegraph_line").each((_, i, nodes) => {
+              d3.select(nodes[i])
+                .transition().duration(200)
+                .attr("opacity", 0.9);
+            });
+          });
+        });
+
+        /* ==============================------------------------------==============================
+         *                                       Bar Chart Code
+         * ==============================------------------------------==============================
+         */
+
+        barChartSales = vgsalesRaw.filter((vg) => {
+          return vg["Year"] != "N/A" &&
+            vg["Year"] <= "2015";
+        })
+
+        let yearConsoleCount = [];
+        for (let i = 1980; i <= 2015; i++) {
+          yearConsoleCount.push({
+            Year: i,
+            Nintendo: 0,
+            Microsoft: 0,
+            Sony: 0,
+            Pc: 0,
+            Atari: 0,
+            Sega: 0,
+            Arcade: 0,
+            Total: 0
+          });
+        }
+
+        function yearConsoleCountEntry(vg, cList, c) {
+          if (cList.includes(vg["Platform"])) {
+            vg["Console"] = c;
+            let year = vg["Year"] - 1980;
+            let sales = parseFloat(vg["Global_Sales"]);
+            yearConsoleCount[year][c] += sales;
+            yearConsoleCount[year]["Total"] += sales;
+          }
+        }
+
+        barChartSales.forEach((vg, i) => {
+          yearConsoleCountEntry(vg, ["Wii", "NES", "GB", "DS", "SNES", "GBA", "3DS", "N64", "GC", "WiiU"], "Nintendo");
+          yearConsoleCountEntry(vg, ["X360", "XB", "XOne"], "Microsoft");
+          yearConsoleCountEntry(vg, ["PS3", "PS2", "PS4", "PS", "PSP", "PSV"], "Sony");
+          yearConsoleCountEntry(vg, ["PC"], "Pc");
+          yearConsoleCountEntry(vg, ["2600"], "Atari");
+          yearConsoleCountEntry(vg, ["GEN", "DC", "SAT", "SCD", "GG"], "Sega");
+          yearConsoleCountEntry(vg, ["NG"], "Arcade");
+        })
+
+        // Set up scales
+
+        let yearExtent = d3.extent(barChartSales, vg => parseInt(vg["Year"]));
+        yearExtent[1] += 1;
+        const yearScale = d3.scaleLinear()
+          .domain(yearExtent)
+          .range([0, barGraphWidth]);
+
+        const percentScale = d3.scaleLinear()
+          .domain([0, 1])
+          .range([0, barGraphHeight]);
+
+        colorPalette = ["#fa8901", "#f43545", "#808080", "#00c2de", "#fad717", "#00418d", "#5f2879", "#00ba71"]
+        const scaleOrdinal = d3.scaleOrdinal(colorPalette);
+
+        // Create axes and axis labels
+
+        let bottomAxis = d3.axisBottom(yearScale);
+        barGraphAnnotations.append('g')
+          .attr('class', 'x axis')
+          .attr('transform', `translate(${barGraphMargin.left}, ${barGraphHeight + barGraphMargin.top + 10})`)
+          .call(bottomAxis.tickFormat(d3.format("d")));
+
+        let leftAxis = d3.axisLeft(percentScale);
+        barGraphAnnotations.append('g')
+          .attr('class', 'y axis')
+          .attr('transform', `translate(${barGraphMargin.left - 10}, ${barGraphMargin.top})`)
+          .call(leftAxis.tickFormat(p => {
+            return Math.round((1 - p) * 100) + "%";
+          }));
+
+        barGraphAnnotations.append("text")
+          .attr("class", "x label")
+          .attr("text-anchor", "middle")
+          .attr("x", (barGraphWidth / 2) + barGraphMargin.left)
+          .attr("y", barGraphHeight + barGraphMargin.top + 50)
+          .text("Year Released");
+
+        barGraphAnnotations.append("text")
+          .attr("class", "y label")
+          .attr("text-anchor", "middle")
+          .attr("y", 5)
+          .attr("x", -barGraphHeight / 2 + barGraphMargin.top)
+          .attr("dy", ".6em")
+          .attr("transform", "rotate(-90)")
+          .text("Percent of Total Unit Sales");
+
+        // Create bars (only if console has at least 1% of sales in a year)
+
+        let rectWidth = barGraphWidth / (yearExtent[1] - yearExtent[0]) - 1;
+
+        yearConsoleCount.forEach((year, i) => {
+          total = year["Total"];
+          y = year["Year"];
+          let nextFloor = 0;
+          for (let c in year) {
+            if (c != "Total" && c != "Year") {
+              percent = year[c] / total;
+              if (percent >= 0.01) {
+                barGraph.append("rect")
+                  .attr("x", yearScale(y) + barGraphMargin.left)
+                  .attr("y", nextFloor + barGraphMargin.top)
+                  .attr("originalPosition", nextFloor + barGraphMargin.top)
+                  .attr("width", rectWidth)
+                  .attr("height", percentScale(year[c] / total))
+                  .style("fill", scaleOrdinal(c))
+                  .attr("originalFill", scaleOrdinal(c))
+                  .attr("class", `bar ${c}`);
+                nextFloor += percentScale(year[c] / total);
+              }
+            }
+          }
+          if (nextFloor < barGraphHeight) {
+            barGraph.append("rect")
+              .attr("x", yearScale(y) + barGraphMargin.left)
+              .attr("y", nextFloor + barGraphMargin.top)
+              .attr("originalPosition", nextFloor + barGraphMargin.top)
+              .attr("width", rectWidth)
+              .attr("height", barGraphHeight - nextFloor)
+              .style("fill", scaleOrdinal("Other"))
+              .attr("originalFill", scaleOrdinal("Other"))
+              .attr("class", "bar Other");
+          }
+        })
+
+        // LEGEND FUNCTIONS //
+        let fixedLegend = d3.select("#legend")
+        for (let i = 0; i < consolesList.length; i++) {
+          let text = fixedLegend.append("text")
+            .style("position", "absolute")
+            .text(consolesList[i])
+            .style("right", 50)
+            .style("top", 275 + i * 34)
+            .style("height", 50)
+            .style("padding-top", "10px")
+            .style("text-align", "right")
+            .style("color", scaleOrdinal(consolesList[i]));
+          let box = fixedLegend.append("rect")
+            .style("background", scaleOrdinal(consolesList[i]))
+            .style("position", "absolute")
+            .style("right", 20)
+            .style("top", 288 + i * 34)
+            .style("width", 20)
+            .style("height", 20)
+          let container = fixedLegend.append("rect")
+            .style("position", "absolute")
+            .style("opacity", 0)
+            .style("right", 20)
+            .style("top", 275 + i * 34)
+            .style("width", 140)
+            .style("height", 50)
+          container.on("mouseover", function () {
+            disappear(consolesList[i])
+            lineChartArea.selectAll('*').remove();
+            updateCirclesAnimated(consolesList[i]);
+          }).on("mouseout", function () {
+            reappearAll()
+            lineChartArea.selectAll('*').remove();
+            updateCirclesAnimated("Total");
+          });
+        }
+        // Graph manipulation functions
+
+        // Hides all consoles except c
+        function disappear(c) {
+          let barMover = d3.selectAll('.bar')
+            .filter(function () {
+              return !this.classList.contains(c)
+            });
+          let op = 0;
+          barMover._groups.forEach(bar => {
+            bar.forEach((r, i) => {
+              d3.select(r).transition().duration(200)
+                .attr("opacity", 0.0);
+            })
+          })
+          barMover = d3.selectAll(`.${c}`);
+          barMover.style("fill", scaleOrdinal(c));
+          let h = 0;
+          barMover._groups.forEach(bar => {
+            bar.forEach((r, i) => {
+              h = r.getAttribute("height");
+              d3.select(r).transition().duration(500)
+                .attr("opacity", 1)
+                .attr("y", barGraphHeight - h + barGraphMargin.top);
+            })
+          })
+        }
+
+        // Returns graph to original position
+        function reappearAll() {
+          let barMover = d3.selectAll('.bar');
+          let op = 0;
+          let f = "";
+          barMover._groups.forEach(bar => {
+            bar.forEach((r, i) => {
+              op = r.getAttribute("originalPosition");
+              f = r.getAttribute("originalFill");
+              d3.select(r).transition().duration(200)
+                .attr("y", op)
+                .attr("opacity", 1);
+            })
+          })
+        }
+        /* ==============================------------------------------==============================
+         *                                         Line Chart
+         * ==============================------------------------------==============================
+         */
+
+        lineVgSales = vgsalesRaw.filter((vg) => {
+          return vg["Year"] != "N/A"
+            && vg["Year"] <= "2015"
+            && vg['Genre'] != "Strategy";
+        })
+
+        let lineYearExtent = d3.extent(lineVgSales, vg => parseInt(vg["Year"]));
+        lineYearExtent[1] += 1;
+
+        let yearGenreCount = [];
+        genresList.forEach(d => {
+          entry = [];
+          for (let i = 1980; i <= 2015; i++) {
+            entry.push({
+              Genre: d, Total: 0, Nintendo: 0, Microsoft: 0, Sony: 0, Pc: 0, Atari: 0, Sega: 0,
+              Bandai: 0, Arcade: 0, Nec: 0, ThreeDO: 0, Year: i
+            })
+          }
+          yearGenreCount.push(entry);
+        });
+
+        function yearGenreCountEntry(vg, cList, c, genre) {
+          if (cList.includes(vg["Platform"])) {
+            vg['Console'] = c;
+            curr_index = genresList.indexOf(genre);
+            if (curr_index >= 0) {
+              yearGenreCount[curr_index][vg["Year"] - 1980][c] += parseFloat(vg["Global_Sales"]);
+              yearGenreCount[curr_index][vg["Year"] - 1980]['Total'] += parseFloat(vg["Global_Sales"]);
+            }
+          }
+        }
+
+
+        lineVgSales.forEach((vg, i) => {
+          yearGenreCountEntry(vg, ["Wii", "NES", "GB", "DS", "SNES", "GBA", "3DS", "N64", "GC", "WiiU"], "Nintendo", vg['Genre']);
+          yearGenreCountEntry(vg, ["X360", "XB", "XOne"], "Microsoft", vg['Genre']);
+          yearGenreCountEntry(vg, ["PS3", "PS2", "PS4", "PS", "PSP", "PSV"], "Sony", vg['Genre']);
+          yearGenreCountEntry(vg, ["PC"], "Pc", vg['Genre']);
+          yearGenreCountEntry(vg, ["2600"], "Atari", vg['Genre']);
+          yearGenreCountEntry(vg, ["GEN", "DC", "SAT", "SCD", "GG"], "Sega", vg['Genre']);
+          yearGenreCountEntry(vg, ["NG"], "Arcade", vg['Genre']);
+        })
+
+        let max_val = 0;
+        yearGenreCount.forEach(d => {
+          d.forEach(i => {
+            if (max_val < i['Total']) {
+              max_val = i['Total'];
+            }
+          })
+        });
+
+        const genreScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const lineYearScale = d3.scaleLinear().domain(lineYearExtent).range([0, lineChartWidth]);
+
+        // X axis
+        let lineBottomAxis = d3.axisBottom(lineYearScale)
+          .tickFormat(d3.format("~f"));
+        let lineBottomGridlines = d3.axisBottom(lineYearScale)
+          .tickSize(-lineChartHeight - 10)
+          .tickFormat("")
+
+        lineAnnotations.append("g")
+          .attr("class", "x axis")
+          .attr("transform", `translate(${lineMargin.left},${lineChartHeight + lineMargin.top})`)
+          .call(lineBottomAxis);
+        lineAnnotations.append("g")
+          .attr("class", "x gridlines")
+          .attr("transform", `translate(${lineMargin.left},${lineChartHeight + lineMargin.top})`)
+          .call(lineBottomGridlines);
+
+        //lines and circles
+        const salesScale = d3.scaleLinear().domain([0, max_val]).range([lineChartHeight, 0]);
+
+        // Y axis
+        let lineLeftAxis = d3.axisLeft(salesScale)
+        let lineLeftGridlines = d3.axisLeft(salesScale)
+          .tickSize(-lineChartWidth - 10)
+          .tickFormat("")
+        lineAnnotations.append("g")
+          .attr("class", "y axis")
+          .attr("transform", `translate(${lineMargin.left},${lineMargin.top})`)
+          .call(lineLeftAxis)
+        lineAnnotations.append("g")
+          .attr("class", "y gridlines")
+          .attr("transform", `translate(${lineMargin.left},${lineMargin.top})`)
+          .call(lineLeftGridlines);
+
+        function updateCirclesAnimated(consoleKey) {
+
+          yearGenreCount.forEach(d => {
+            points = lineChartArea.append('g')
+              .attr('class', `linegraph_line ${d[0]['Genre']}`)
+              .attr('stroke', genreScale(d[0]['Genre']))
+              .attr("opacity", 0.9);
+
+            d.forEach((p, i) => {
+              points.append("circle")
+                .attr("r", 3)
+                .attr("class", `lineCircles ${p['Genre']}`)
+                .attr("fill", genreScale(p['Genre']))
+                .attr("cx", lineYearScale(p['Year']))
+                .attr("cy", salesScale(p[consoleKey]));
+            });
+
+            let lineGen = d3.line()
+              .x(d => lineYearScale(d['Year']))
+              .y(d => salesScale(d[consoleKey]))
+              .curve(d3.curveMonotoneX);
+
+            points.append("path")
+              .datum(d)
+              .merge(points)
+              .transition()
+              .duration(300)
+              .attr("fill", "none")
+              .attr("stroke-width", 2)
+              .attr("d", lineGen);
+          });
+        };
+
+        updateCirclesAnimated("Total");
+      }
+
+      requestData();
+
+    </script>
+  </article>
+</body>
+
+</html>
